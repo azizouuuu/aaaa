@@ -71,6 +71,43 @@ rather than just relabeling the same order. Countries with no reported
 weight for a given flow/year are omitted from the tonnage ranking, with a
 count shown, rather than silently plotted as zero.
 
+**No intra-EU double-counting.** If Indonesia ships POME to Rotterdam and the
+Netherlands re-ships part of it to Germany, that's one physical shipment —
+naively summing every country's own "exports to world" figure would count it
+twice (Indonesia→Netherlands, then again as Netherlands→Germany), because an
+EU member's own reported total legitimately includes its intra-EU trade.
+Every world/bloc total in this app (`/api/trend/world`, `/api/rankings`'s
+world total and per-row shares) excludes intra-EU27 legs — see
+`app/signals/eu_bloc.py`. The correction is real, not cosmetic: in the
+sample data, Netherlands + Germany's naive combined UCO export figures sum
+to ~$829M, but the EU27 bloc's actual extra-EU trade is only ~$534M — most
+of the apparent volume is intra-EU redistribution, not new trade with the
+rest of the world.
+
+**The UK is not part of this bloc.** `EU_MEMBERS` is EU27, not EU28 — the
+UK left the customs union in 2021, so UK↔EU flows are real, distinct
+international trade and are counted in full, never netted out as if
+internal. (This is slightly imprecise for 2018–2020 data, when the UK
+genuinely was in the bloc — a much smaller, more academic gap than the
+opposite mistake of still excluding UK trade after Brexit.)
+
+**EU27 as a first-class entity, not just a bug fix.** Since the bloc total
+matters on its own, not only as a denominator correction:
+- Rankings: check "Show EU27 as one bloc" to collapse all 21 tracked member
+  states into a single consolidated row (intra-EU trade excluded), directly
+  comparable to China, Indonesia, or any other country's bar. Individual
+  member rows, when shown separately (the default), are flagged with `*` —
+  their own total may still include intra-EU re-exports.
+- Partners: select "European Union (27) — bloc" as the reporter to see which
+  non-EU countries the bloc actually trades with (`GET /api/partners?reporter=EU27`).
+  This uses a simpler, independent calculation (sum each member's own partner
+  breakdown, keep only non-EU partners) than the Rankings bloc total (a
+  world-total-minus-intra-EU subtraction) — the two EU27 figures can differ
+  slightly for the same reason real customs statistics have an
+  unattributed/confidential-partner residual; that's expected, not a bug.
+  (`/api/partners/trend` doesn't support the EU27 bloc yet — the reporter
+  trend chart is hidden when it's selected.)
+
 ## Architecture
 
 ```
@@ -90,7 +127,8 @@ app/
                  bands), mirror.py, origination.py, national_override.py
                  (CN8/HTS10 line -> candidate map), origin_confirmation.py
                  (national CSV vs global-mirror cross-check), china_mirror.py
-                 (demand-side triangulation), engine.py (composite scorer +
+                 (demand-side triangulation), eu_bloc.py (intra-EU
+                 double-counting correction), engine.py (composite scorer +
                  national-line short-circuit).
   api/           FastAPI routers: meta, trade (rankings/trend/partners/
                  watchlist), signals (incl. origin-check, china-mirror).
@@ -276,13 +314,15 @@ the live endpoint**, same flag as Eurostat/Census.
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # 110 tests: determinism, signals math,
+pytest                                    # 124 tests: determinism, signals math,
                                            # Comtrade/Eurostat/Census/Comex Stat
                                            # request building, national CSV
                                            # ingestion, origin confirmation,
                                            # China mirror triangulation,
                                            # tonnage/value metric ranking,
-                                           # full API smoke (sample mode)
+                                           # intra-EU double-counting
+                                           # correction, full API smoke
+                                           # (sample mode)
 python scripts/screenshot.py              # Playwright screenshots of every
                                            # route + dark mode (needs the
                                            # server running separately)
@@ -298,6 +338,14 @@ python scripts/screenshot.py              # Playwright screenshots of every
   against each before trusting their output.
 - The China mirror panel covers 20 destinations; flows to unlisted countries
   are invisible to `/api/china-mirror`, and mirror imports are CIF vs FOB.
+- The EU27 intra-bloc correction (`app/signals/eu_bloc.py`) only accounts
+  for double-counting *within* the EU27. A non-EU entrepôt like Singapore
+  re-exporting Indonesian-origin feedstock to a third country would exhibit
+  the same effect and isn't corrected for — the EU is handled because it's
+  by far the largest, most institutionalized case for these products
+  (Rotterdam/Antwerp), not because it's the only one.
+- `/api/partners/trend` doesn't support `reporter=EU27` yet — only the
+  Rankings and Partners snapshot views do.
 - **Brazil Comex Stat is unverified against its live endpoint**, and its
   country resolution is by Portuguese name match, not numeric code — see
   "Quick win in detail" above. Not wired into rankings/partners for the same

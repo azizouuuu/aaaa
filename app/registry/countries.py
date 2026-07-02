@@ -81,8 +81,16 @@ COUNTRIES: dict[str, tuple[int, str]] = {
 
 M49_TO_ISO3: dict[int, str] = {m49: iso for iso, (m49, _) in COUNTRIES.items()}
 
+# Pseudo-country codes for bloc aggregates — not real M49-codeable reporters,
+# so they're deliberately excluded from COUNTRIES/m49_of. See
+# app/signals/eu_bloc.py for how the EU27 figure itself is computed.
+EU_BLOC_ISO = "EU27"
+_SPECIAL_NAMES = {EU_BLOC_ISO: "European Union (27)"}
+
 
 def name_of(iso3: str) -> str:
+    if iso3 in _SPECIAL_NAMES:
+        return _SPECIAL_NAMES[iso3]
     entry = COUNTRIES.get(iso3)
     return entry[1] if entry else iso3
 

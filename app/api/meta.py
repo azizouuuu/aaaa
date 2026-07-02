@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from .. import config
 from ..registry.commodities import COMMODITIES, GROUPS, HVO_SAF_NOTE
-from ..registry.countries import COUNTRIES, RD_SAF_HUBS, WATCHLISTS
+from ..registry.countries import COUNTRIES, EU_BLOC_ISO, EU_MEMBERS, RD_SAF_HUBS, WATCHLISTS, name_of
 from ..registry.national_codes import NATIONAL_LINES
 from ..signals.candidates import CANDIDATES
 from ..signals.unit_value import BAND_VINTAGE
@@ -45,6 +45,17 @@ def meta():
             "groups": GROUPS,
             "years": config.YEARS,
             "countries": {iso: name for iso, (_, name) in COUNTRIES.items()},
+            "blocs": {
+                EU_BLOC_ISO: {
+                    "name": name_of(EU_BLOC_ISO),
+                    "members": sorted(EU_MEMBERS),
+                    "note": "Consolidated extra-EU trade only — intra-EU legs "
+                            "excluded to avoid double-counting re-exports "
+                            "(the Rotterdam effect). The UK left the customs "
+                            "union in 2021 and is tracked as its own country, "
+                            "not part of this bloc.",
+                },
+            },
             "hubs": RD_SAF_HUBS,
             "watchlists": {
                 key: {"name": w["name"], "countries": list(w["countries"])}
@@ -129,6 +140,33 @@ def methodology():
             "band_vintage": BAND_VINTAGE,
             "signal_weights": {
                 "unit_value": 0.45, "origin": 0.25, "destination": 0.20, "mirror": 0.10,
+            },
+            "eu_bloc": {
+                "problem": (
+                    "If Indonesia ships POME to the Netherlands, and the Netherlands "
+                    "re-ships part of it to Germany, that's one physical shipment. "
+                    "Naively summing every country's own \"exports to world\" figure "
+                    "counts it twice, because an EU member's own reported total "
+                    "legitimately includes its intra-EU trade — the 'Rotterdam effect'."
+                ),
+                "fix": (
+                    "Every world/bloc total in this app (World trend, Rankings' world "
+                    "total and per-row shares) excludes intra-EU27 legs. See "
+                    "app/signals/eu_bloc.py."
+                ),
+                "uk_note": (
+                    "EU_MEMBERS is EU27, not EU28 — the UK left the customs union in "
+                    "2021, so UK<->EU flows count in full as real international trade, "
+                    "never netted out as internal. Slightly imprecise for 2018-2020 "
+                    "data (the UK genuinely was in the bloc then)."
+                ),
+                "features": (
+                    "Rankings: 'Show EU27 as one bloc' collapses the 21 tracked member "
+                    "states into one consolidated row. Partners: reporter=EU27 shows "
+                    "which non-EU countries the bloc trades with. The two EU27 figures "
+                    "can differ slightly (different calculation methods) the same way "
+                    "real customs statistics carry an unattributed-partner residual."
+                ),
             },
             "shared_headings": shared,
             "national_lines": national,

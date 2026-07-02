@@ -9,6 +9,15 @@ export async function render(container) {
   htmlEl("h2", {}, hvo).textContent = "HVO / SAF data gap";
   htmlEl("p", { class: "sub" }, hvo).textContent = data.hvo_saf_note;
 
+  if (data.eu_bloc) {
+    const eu = htmlEl("div", { class: "card" }, container);
+    htmlEl("h2", {}, eu).textContent = "Intra-EU double-counting (the Rotterdam effect)";
+    htmlEl("p", { class: "sub" }, eu).textContent = data.eu_bloc.problem;
+    htmlEl("p", { class: "sub" }, eu).textContent = data.eu_bloc.fix;
+    htmlEl("p", { class: "sub" }, eu).textContent = data.eu_bloc.uk_note;
+    htmlEl("p", { class: "sub" }, eu).textContent = data.eu_bloc.features;
+  }
+
   const weights = htmlEl("div", { class: "card" }, container);
   htmlEl("h2", {}, weights).textContent = "Disaggregation signal weights";
   htmlEl("div", { class: "sub" }, weights).textContent =

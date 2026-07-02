@@ -51,10 +51,16 @@ class PipelineRegistry:
             return True
         return time.time() >= self._live_blocked_until
 
-    def fetch(self, q: FlowQuery) -> tuple[list[TradeRecord], str]:
-        """Returns (records, source_id_used)."""
+    def fetch(self, q: FlowQuery, exclude_sources: frozenset = frozenset()) -> tuple[list[TradeRecord], str]:
+        """Returns (records, source_id_used). `exclude_sources` skips named
+        pipelines regardless of coverage — used by app/signals/eu_bloc.py to
+        keep a multi-query correction consistently sourced from one place
+        (e.g. always Comtrade) rather than silently mixing code systems
+        across the queries a single correction depends on."""
         if self._live_allowed():
             for p in self.pipelines:
+                if p.source_id in exclude_sources:
+                    continue
                 if not p.covers(q):
                     continue
                 try:
