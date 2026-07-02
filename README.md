@@ -212,16 +212,33 @@ sparse in recent years. So P3 works from the demand side:
   (schema in `national_csv.py`, env `CHINA_GACC_CSV`) and
   `/api/origin-check?reporter=CHN` starts cross-checking it.
 
-**Getting Chinese data directly — options to investigate** (deliberately
-not built until one is chosen):
+**Getting Chinese data directly — options priced, deliberately not built
+until one is chosen:**
 
-| Route | Cost ballpark | Notes |
+| Route | Price (sourced) | Notes |
 |---|---|---|
-| Someone with mainland access exports CSVs from stats.customs.gov.cn manually | free + labor | Portal registration needs a mainland phone; monthly bilateral HS8 queries are exportable once inside. Feeds the `china_gacc.py` slot as-is. |
-| Data resellers (transcustoms, china-gacc.agency, cnabke-listed platforms) | low hundreds $/mo | Repackage GACC statistics; quality/licensing varies — verify a sample against mirror data before paying for a year. |
-| HKTDC China Customs Statistics | **appears free** | Run by Hong Kong's trade-promotion council, not a commercial vendor — no subscription page or pricing found (checked, blocked from direct fetch, but no paid-tier evidence anywhere). Likely aggregate country/major-commodity totals only, same limitation as GACC's own English bulletin — probably too coarse for HS 1518-level detail. Useful as a free spot-check, not a pipeline source. |
-| Shipment-level platforms (ImportGenius/Panjiva-class) | $150–400+/mo | Company-level BoL detail, but China export coverage is indirect on most platforms — check coverage for HS 1518 specifically before subscribing. |
-| Kpler/Vortexa-class vessel tracking | enterprise | Best for bulk-liquid UCO/UCOME cargo flows out of Chinese ports, near-real-time; also the priciest. |
+| Manual export from stats.customs.gov.cn via a mainland contact | free + labor | Registration needs a mainland phone. Feeds `china_gacc.py` as-is. |
+| HKTDC China Customs Statistics | **free** | Hong Kong trade-promotion council, not a vendor. Likely aggregate totals only — too coarse for HS 1518 detail; a spot-check, not a pipeline source. |
+| ExportGenius | from **$278/mo** (Starter, 2 users; Essential/Expert tiers cost more, annual billing discounted) | [pricing](https://www.exportgenius.com/pricing) |
+| ImportGenius | **$125–899/user/mo** (Essentials $125 annual / $199 month-to-month, Business $399, Enterprise $899); extra countries beyond its US core **+$99–399/mo each** | [pricing](https://www.importgenius.com/pricing). Core strength is US import BoL data — confirm China coverage specifically before buying. |
+| Tendata / Volza | Tendata: no public pricing (sales quote, credit-based). Volza: online access **from $1,500** (pay-per-point model, unclear if monthly/annual) | [Volza pricing](https://www.volza.com/pricing/) |
+| Panjiva (S&P Global) | No public pricing — enterprise sales quote | Typically priced for large-corporate budgets. |
+| Kpler/MarineTraffic-class vessel tracking | **tens of thousands to low-hundreds of thousands $/year**, modular by commodity | [Kpler enterprise](https://www.kpler.com/product/maritime/enterprise-plan). Best for bulk-liquid UCO/UCOME cargo flows near-real-time; also the priciest. |
+
+**Before paying any of these — a finding that changes the calculus:** China
+does not publish granular export declarations to third parties at all.
+Every commercial "China export data" provider reconstructs it from partner
+countries' import statistics (mirror data — the same technique
+`china_mirror.py` already does for free), shipping-manifest scraping, or
+older archived/resold sources. Industry reporting describes coverage as
+solid through ~2017, patchier from 2018, and **materially degraded for the
+most recent 12–24 months** since China's 2021 Personal Information
+Protection Law and Data Security Law took effect. **Before subscribing to
+any paid option, ask the vendor directly: is this sourced from China's own
+customs declarations, or reconstructed from partner-country mirrors? If
+it's mirror-based, verify it isn't just a worse (or same) version of what
+`/api/china-mirror` already gives for free**, and check current-year
+coverage specifically rather than assuming historical depth carries forward.
 
 The mirror triangulation stays valuable regardless — it's the independent
 cross-check any purchased Chinese dataset should be validated against.
