@@ -92,7 +92,11 @@ def methodology():
     ]
     roadmap = [
         {"phase": "P0", "pipeline": "UN Comtrade global (HS6)", "status": "live"},
-        {"phase": "P1", "pipeline": "EU mirror — Eurostat Comext (CN8)", "status": "planned"},
+        {
+            "phase": "P1",
+            "pipeline": "EU mirror — Eurostat Comext (CN8)",
+            "status": "implemented, unverified against live endpoint",
+        },
         {"phase": "P2", "pipeline": "Indonesia BPS + Malaysia DOSM (AHTN8)", "status": "planned"},
         {"phase": "P3", "pipeline": "China — GACC releases + EU/US/SGP mirrors", "status": "planned"},
         {"phase": "quick win", "pipeline": "Brazil Comex Stat (NCM8)", "status": "planned"},
@@ -115,6 +119,15 @@ def methodology():
                     "url": "https://comtradeplus.un.org",
                     "notes": "Annual HS6 goods trade; free preview API (~500 records/call) "
                              "or free registered key with higher limits.",
+                },
+                {
+                    "name": "Eurostat Comext",
+                    "url": "https://ec.europa.eu/eurostat/web/international-trade-in-goods/database",
+                    "notes": "EU trade at CN8 detail (dataset DS-045409). Splits several "
+                             "shared HS6 headings directly and mirrors non-EU exporters' "
+                             "flows into the EU. Values converted from EUR at a fixed "
+                             "indicative rate — see app/pipelines/eurostat_comext.py. "
+                             "Not yet exercised against the live endpoint in this build.",
                 },
             ],
         },

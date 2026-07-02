@@ -116,3 +116,45 @@ WATCHLISTS = {
     "asia": {"name": "Asia", "countries": WATCHLIST_ASIA},
     "sam": {"name": "South America", "countries": WATCHLIST_SOUTH_AMERICA},
 }
+
+# Standard ISO 3166-1 alpha-2 for every country in COUNTRIES (except WLD) —
+# needed for Eurostat/Comext, which addresses ALL countries (reporters and
+# partners alike) by ISO2, not just EU members. Eurostat uses two documented
+# exceptions to the standard: Greece is "EL" (not "GR") and the United
+# Kingdom is "UK" (not "GB") — both applied via ISO2_OVERRIDES below.
+# UNVERIFIED against a live Comext call in this environment (outbound access
+# is sandboxed) — confirm before trusting P1 output; see
+# app/pipelines/eurostat_comext.py.
+ISO3_TO_ISO2: dict[str, str] = {
+    "CHN": "CN", "IDN": "ID", "MYS": "MY", "THA": "TH", "SGP": "SG", "JPN": "JP",
+    "KOR": "KR", "IND": "IN", "VNM": "VN", "PHL": "PH", "PAK": "PK", "TWN": "TW",
+    "HKG": "HK", "PNG": "PG", "ARE": "AE", "SAU": "SA", "TUR": "TR",
+    "ARG": "AR", "BRA": "BR", "URY": "UY", "PRY": "PY", "COL": "CO", "PER": "PE",
+    "CHL": "CL", "BOL": "BO", "ECU": "EC",
+    "USA": "US", "CAN": "CA", "MEX": "MX", "GTM": "GT", "HND": "HN",
+    "NLD": "NL", "DEU": "DE", "BEL": "BE", "FRA": "FR", "ESP": "ES", "ITA": "IT",
+    "GBR": "GB", "IRL": "IE", "PRT": "PT", "SWE": "SE", "FIN": "FI", "DNK": "DK",
+    "NOR": "NO", "POL": "PL", "AUT": "AT", "CZE": "CZ", "HUN": "HU", "ROU": "RO",
+    "BGR": "BG", "GRC": "GR", "LTU": "LT", "LVA": "LV", "EST": "EE", "CHE": "CH",
+    "UKR": "UA", "RUS": "RU",
+    "AUS": "AU", "NZL": "NZ", "ZAF": "ZA", "EGY": "EG", "MAR": "MA", "NGA": "NG",
+    "KEN": "KE",
+}
+ISO2_OVERRIDES = {"GRC": "EL", "GBR": "UK"}  # Eurostat-specific exceptions
+
+# EU-27 members this app currently tracks (extend as more are added to
+# COUNTRIES). Used to decide when Comext can answer a query directly
+# (reporter is EU) vs. via mirror (partner is EU) — see eurostat_comext.py.
+EU_MEMBERS = frozenset({
+    "NLD", "DEU", "BEL", "FRA", "ESP", "ITA", "IRL", "PRT", "SWE", "FIN",
+    "DNK", "POL", "AUT", "CZE", "HUN", "ROU", "BGR", "GRC", "LTU", "LVA", "EST",
+})
+
+
+def to_eurostat(iso3: str) -> str:
+    """ISO3 -> the code Comext uses for this country (any country, not just
+    EU members — Comext addresses non-EU partners by ISO2 too)."""
+    return ISO2_OVERRIDES.get(iso3, ISO3_TO_ISO2.get(iso3, iso3))
+
+
+ISO3_TO_EUROSTAT: dict[str, str] = {iso3: to_eurostat(iso3) for iso3 in EU_MEMBERS}

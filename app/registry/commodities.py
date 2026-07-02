@@ -104,6 +104,7 @@ COMMODITIES: list[Commodity] = [
 
 BY_SLUG = {c.slug: c for c in COMMODITIES}
 FEEDSTOCK_SLUGS = tuple(c.slug for c in COMMODITIES if c.group != "fuel")
+CODE_TO_SLUG = {code: c.slug for c in COMMODITIES for code in c.codes}
 
 GROUPS = {
     "waste_residue": "Waste & residue feedstocks",

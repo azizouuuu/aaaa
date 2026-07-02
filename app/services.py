@@ -4,6 +4,7 @@ from . import config
 from .db import Store
 from .pipelines.base import PipelineRegistry
 from .pipelines.comtrade import ComtradePipeline
+from .pipelines.eurostat_comext import EurostatComextPipeline
 from .pipelines.sample import SamplePipeline
 
 _store: Store | None = None
@@ -24,7 +25,8 @@ def get_registry() -> PipelineRegistry:
         store = get_store()
         _sample = SamplePipeline(store, config.SAMPLE_DATA_PATH)
         comtrade = ComtradePipeline(store, config.COMTRADE_API_KEY)
-        _registry = PipelineRegistry([comtrade], _sample, config.DATA_MODE)
+        eurostat = EurostatComextPipeline(store)
+        _registry = PipelineRegistry([eurostat, comtrade], _sample, config.DATA_MODE)
     return _registry
 
 
