@@ -4,10 +4,11 @@ mirror checks."""
 from fastapi import APIRouter, HTTPException
 
 from ..models import FlowQuery
-from ..pipelines import indonesia_bps, malaysia_dosm
+from ..pipelines import china_gacc, indonesia_bps, malaysia_dosm
 from ..registry.countries import COUNTRIES, name_of
 from ..services import get_registry
 from ..signals.candidates import candidates_for
+from ..signals.china_mirror import triangulate
 from ..signals.corridors import hub_share
 from ..signals.engine import disaggregate_flow
 from ..signals.mirror import mirror_check
@@ -17,9 +18,13 @@ from .helpers import aggregate_by, commodity_or_404, envelope, flow_or_400
 
 router = APIRouter(prefix="/api")
 
-# P2 local-file sources, keyed by the reporter they cover — see
+# P2/P3 local-file sources, keyed by the reporter they cover — see
 # app/pipelines/national_csv.py for why these read a local file.
-_ORIGIN_SOURCES = {"IDN": indonesia_bps.build, "MYS": malaysia_dosm.build}
+_ORIGIN_SOURCES = {
+    "IDN": indonesia_bps.build,
+    "MYS": malaysia_dosm.build,
+    "CHN": china_gacc.build,
+}
 
 
 def _serialize_signal(result, slug: str) -> dict:
@@ -175,6 +180,30 @@ def origin_check(cmd: str, reporter: str, year: int = 2024):
             "ratio": result.ratio,
             "note": result.note,
             "warnings": result.warnings or [],
+        },
+        get_registry().data_mode,
+    )
+
+
+@router.get("/china-mirror")
+def china_mirror(cmd: str, year: int = 2024, flow: str = "X"):
+    """P3: triangulate China's trade in a commodity from the demand side —
+    what the mirror panel of major buyers reports trading WITH China —
+    since GACC data is not freely automatable (see app/pipelines/china_gacc.py)."""
+    c = commodity_or_404(cmd)
+    flow_or_400(flow)
+    result = triangulate(c.slug, year, get_registry(), flow)
+    return envelope(
+        {
+            "slug": result.slug,
+            "commodity": c.name,
+            "year": result.year,
+            "flow": result.flow,
+            "mirror_total_usd": result.mirror_total_usd,
+            "own_declared_usd": result.own_declared_usd,
+            "ratio": result.ratio,
+            "breakdown": result.breakdown,
+            "notes": result.notes,
         },
         get_registry().data_mode,
     )

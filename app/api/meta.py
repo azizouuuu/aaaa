@@ -103,9 +103,19 @@ def methodology():
             "status": "implemented as local-file ingestion, not a live API — "
                      "see GET /api/origin-check",
         },
-        {"phase": "P3", "pipeline": "China — GACC releases + EU/US/SGP mirrors", "status": "planned"},
+        {
+            "phase": "P3",
+            "pipeline": "China — mirror triangulation (see GET /api/china-mirror) "
+                       "+ GACC local-file slot",
+            "status": "implemented; GACC portal itself is not freely automatable "
+                     "(mainland real-name registration, overseas fetch blocked)",
+        },
         {"phase": "quick win", "pipeline": "Brazil Comex Stat (NCM8)", "status": "planned"},
-        {"phase": "quick win", "pipeline": "US Census (HTS10)", "status": "planned"},
+        {
+            "phase": "quick win",
+            "pipeline": "US Census (HTS10)",
+            "status": "implemented, unverified against live endpoint",
+        },
         {"phase": "deferred", "pipeline": "Paid shipment/vessel data (ImportGenius vs Kpler-class)", "status": "deferred"},
     ]
     return envelope(
@@ -133,6 +143,23 @@ def methodology():
                              "flows into the EU. Values converted from EUR at a fixed "
                              "indicative rate — see app/pipelines/eurostat_comext.py. "
                              "Not yet exercised against the live endpoint in this build.",
+                },
+                {
+                    "name": "US Census international trade",
+                    "url": "https://www.census.gov/foreign-trade/data/index.html",
+                    "notes": "US imports/exports at HTS10 detail (free API; optional key "
+                             "raises limits). Mirrors China->USA corridors incl. the UCO "
+                             "line 1518.00.4000. Not yet exercised against the live "
+                             "endpoint in this build.",
+                },
+                {
+                    "name": "China GACC (indirect only)",
+                    "url": "http://stats.customs.gov.cn/",
+                    "notes": "Official query portal requires mainland real-name "
+                             "registration; overseas automated access is blocked. China "
+                             "is covered via mirror triangulation (/api/china-mirror) "
+                             "and a local-file slot for manually/commercially obtained "
+                             "data (/api/origin-check?reporter=CHN).",
                 },
             ],
         },

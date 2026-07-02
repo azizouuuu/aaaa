@@ -4,6 +4,7 @@ const routes = {
   partners: () => import("./views/partners.js"),
   watchlist: () => import("./views/watchlist.js"),
   signals: () => import("./views/signals.js"),
+  china: () => import("./views/china.js"),
   methodology: () => import("./views/methodology.js"),
 };
 const DEFAULT_PARAMS = { cmd: "uco", flow: "X", year: 2024 };

@@ -30,6 +30,14 @@ NATIONAL_OVERRIDES: dict[tuple[str, str], LineOverride] = {
     ("CN8", "15180095"): LineOverride("uco", True),
     ("CN8", "15180099"): LineOverride("modified_oils", True),
     ("CN8", "15021090"): LineOverride("inedible_tallow", True),
+    # ---- US Census HTS10 ----
+    # 1518.00.4000 is the line US UCO imports clear under, but the heading
+    # text ("inedible mixtures of fats and oils") can carry other inedible
+    # blends too — hence certain=False.
+    ("HTS10", "1518004000"): LineOverride("uco", False),
+    # 1515.29.00.40 "corn oil, other" carries both distillers corn oil and
+    # refined food-grade corn oil.
+    ("HTS10", "1515290040"): LineOverride("tco", False),
 }
 
 

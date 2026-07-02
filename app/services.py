@@ -6,6 +6,7 @@ from .pipelines.base import PipelineRegistry
 from .pipelines.comtrade import ComtradePipeline
 from .pipelines.eurostat_comext import EurostatComextPipeline
 from .pipelines.sample import SamplePipeline
+from .pipelines.us_census import UsCensusPipeline
 
 _store: Store | None = None
 _registry: PipelineRegistry | None = None
@@ -26,7 +27,8 @@ def get_registry() -> PipelineRegistry:
         _sample = SamplePipeline(store, config.SAMPLE_DATA_PATH)
         comtrade = ComtradePipeline(store, config.COMTRADE_API_KEY)
         eurostat = EurostatComextPipeline(store)
-        _registry = PipelineRegistry([eurostat, comtrade], _sample, config.DATA_MODE)
+        census = UsCensusPipeline(store)
+        _registry = PipelineRegistry([eurostat, census, comtrade], _sample, config.DATA_MODE)
     return _registry
 
 

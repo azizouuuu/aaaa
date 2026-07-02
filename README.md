@@ -66,20 +66,23 @@ matter most for this use case.
 ```
 app/
   pipelines/     data sources: comtrade.py (live, global HS6), eurostat_comext.py
-                 (live, EU CN8 + non-EU mirror), national_csv.py + indonesia_bps.py
-                 + malaysia_dosm.py (local-file ingestion, see P2 below),
-                 sample.py (offline fallback). One shared protocol (base.py)
-                 so new national sources slot in without touching the API layer.
+                 (live, EU CN8 + non-EU mirror), us_census.py (live, HTS10 +
+                 China mirror), national_csv.py + indonesia_bps.py +
+                 malaysia_dosm.py + china_gacc.py (local-file ingestion, see
+                 P2/P3 below), sample.py (offline fallback). One shared
+                 protocol (base.py) so new national sources slot in without
+                 touching the API layer.
   registry/      commodities.py (HS codes + caveats), countries.py (ISO3/M49,
                  EU/Eurostat codes, watchlists, RD/SAF hubs), national_codes.py
                  (8-10 digit tariff-line targets for the national pipelines).
   signals/       unit_value.py, corridors.py, candidates.py (origin priors +
                  bands), mirror.py, origination.py, national_override.py
-                 (CN8 line -> candidate map), origin_confirmation.py (national
-                 CSV vs global-mirror cross-check), engine.py (composite
-                 scorer + national-line short-circuit).
+                 (CN8/HTS10 line -> candidate map), origin_confirmation.py
+                 (national CSV vs global-mirror cross-check), china_mirror.py
+                 (demand-side triangulation), engine.py (composite scorer +
+                 national-line short-circuit).
   api/           FastAPI routers: meta, trade (rankings/trend/partners/
-                 watchlist), signals (incl. origin-check).
+                 watchlist), signals (incl. origin-check, china-mirror).
 static/          vanilla JS + hand-rolled SVG charts, hash-router, dark mode.
 data/sample/     committed, deterministic synthetic dataset (see below).
 ```
@@ -104,9 +107,9 @@ becomes 7 per-year calls rather than one call that silently truncates.
 | P0 (live) | UN Comtrade | global HS6 baseline, all countries |
 | P1 (implemented, unverified live) | Eurostat Comext (CN8) | EU mirror data — splits POME/soapstock, PFAD/acid oil, UCO/modified oils directly at CN8, and picks up non-EU exporters' flows via the EU side even though they aren't reporters themselves |
 | P2 (implemented, local-file) | Indonesia BPS + Malaysia DOSM (AHTN8) | origin-side confirmation for the palm-belt feedstocks — see `GET /api/origin-check` |
-| P3 | China (GACC releases + mirrors) | the #1 UCO exporter has no open customs API — mirror-only initially |
+| P3 (implemented) | China — mirror triangulation + GACC local-file slot | the #1 UCO exporter, covered from the demand side — see `GET /api/china-mirror` and the China tab |
 | quick win | Brazil Comex Stat (NCM8) | fully open API, no key |
-| quick win | US Census (HTS10) | free key |
+| quick win (implemented, unverified live) | US Census (HTS10) | HTS10 detail incl. the UCO import line; also the biggest China mirror |
 | deferred | Paid shipment/vessel data (ImportGenius vs Kpler-class) | revisit once specific corridors need company-level or vessel-level confirmation |
 
 Each national pipeline implements the same `TradeDataPipeline` protocol and
@@ -180,15 +183,58 @@ sub-lines aren't catalogued yet") rather than picking a side. With no file
 present it returns `available: false`, not an error — that's the expected
 state until you provide data.
 
+### P3 in detail: China (mirror triangulation)
+
+China is the #1 UCO exporter and there is **no free automated route to its
+own customs data**: GACC's query portal (stats.customs.gov.cn) requires
+mainland-China real-name registration and blocks overseas fetches (verified
+403 during this build), and China's direct reporting to UN Comtrade has been
+sparse in recent years. So P3 works from the demand side:
+
+- `app/signals/china_mirror.py` + `GET /api/china-mirror?cmd=uco&year=2024`
+  (and the **China** tab in the UI) sum what a 20-country mirror panel —
+  the RD/SAF hubs plus the big Asian buyers — reports importing *from*
+  China, show the per-country breakdown, and compare it against China's own
+  declared exports where available. The result always carries its caveats:
+  mirror imports are CIF (~5–10% above FOB) and destinations outside the
+  panel are invisible, so the own-vs-mirror ratio is a coverage indicator,
+  not a fraud verdict by itself.
+- `app/pipelines/us_census.py` sharpens the biggest single mirror: US
+  imports at HTS10 detail (the 1518.00.4000 UCO line), with the same
+  reporter/partner flip logic as the Eurostat pipeline so `China → USA`
+  queries route through it automatically. Same caveat as Eurostat: written
+  from documented API conventions, **not yet exercised against the live
+  endpoint** (this sandbox can't reach api.census.gov). Optional free
+  `CENSUS_API_KEY` raises rate limits.
+- `app/pipelines/china_gacc.py` is a ready ingestion slot: the moment
+  Chinese data is obtained by any route below, drop it in as a CSV
+  (schema in `national_csv.py`, env `CHINA_GACC_CSV`) and
+  `/api/origin-check?reporter=CHN` starts cross-checking it.
+
+**Getting Chinese data directly — options to investigate** (deliberately
+not built until one is chosen):
+
+| Route | Cost ballpark | Notes |
+|---|---|---|
+| Someone with mainland access exports CSVs from stats.customs.gov.cn manually | free + labor | Portal registration needs a mainland phone; monthly bilateral HS8 queries are exportable once inside. Feeds the `china_gacc.py` slot as-is. |
+| Data resellers (transcustoms, china-gacc.agency, cnabke-listed platforms) | low hundreds $/mo | Repackage GACC statistics; quality/licensing varies — verify a sample against mirror data before paying for a year. |
+| HKTDC China Customs Statistics | subscription | Established re-publisher of official GACC monthly statistics. |
+| Shipment-level platforms (ImportGenius/Panjiva-class) | $150–400+/mo | Company-level BoL detail, but China export coverage is indirect on most platforms — check coverage for HS 1518 specifically before subscribing. |
+| Kpler/Vortexa-class vessel tracking | enterprise | Best for bulk-liquid UCO/UCOME cargo flows out of Chinese ports, near-real-time; also the priciest. |
+
+The mirror triangulation stays valuable regardless — it's the independent
+cross-check any purchased Chinese dataset should be validated against.
+
 ## Testing
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # 74 tests: determinism, signals
-                                           # math, Comtrade/Eurostat request
+pytest                                    # 89 tests: determinism, signals math,
+                                           # Comtrade/Eurostat/Census request
                                            # building, national CSV ingestion,
-                                           # origin confirmation, full API
-                                           # smoke (sample mode)
+                                           # origin confirmation, China mirror
+                                           # triangulation, full API smoke
+                                           # (sample mode)
 python scripts/screenshot.py              # Playwright screenshots of every
                                            # route + dark mode (needs the
                                            # server running separately)
@@ -199,8 +245,11 @@ python scripts/screenshot.py              # Playwright screenshots of every
 - Unit-value bands and origin priors (`app/signals/candidates.py`) are
   indicative 2022–2024 estimates — a domain-expert review pass before
   trusting the Signals view in decisions would materially improve it.
-- **Eurostat Comext (P1) is unverified against the live endpoint** — see "P1
-  in detail" above. Run one real call before trusting its output.
+- **Eurostat Comext (P1) and US Census (P3) are unverified against their
+  live endpoints** — see the per-phase sections above. Run one real call
+  against each before trusting their output.
+- The China mirror panel covers 20 destinations; flows to unlisted countries
+  are invisible to `/api/china-mirror`, and mirror imports are CIF vs FOB.
 - CN8-to-candidate mappings (`app/signals/national_override.py`) are also a
   judgment call, same caveat as the unit-value bands.
 - Comext values are converted from EUR to USD at a fixed indicative rate, not
