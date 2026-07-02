@@ -219,7 +219,7 @@ not built until one is chosen):
 |---|---|---|
 | Someone with mainland access exports CSVs from stats.customs.gov.cn manually | free + labor | Portal registration needs a mainland phone; monthly bilateral HS8 queries are exportable once inside. Feeds the `china_gacc.py` slot as-is. |
 | Data resellers (transcustoms, china-gacc.agency, cnabke-listed platforms) | low hundreds $/mo | Repackage GACC statistics; quality/licensing varies — verify a sample against mirror data before paying for a year. |
-| HKTDC China Customs Statistics | subscription (pricing TBD — open item) | Established re-publisher of official GACC monthly statistics. |
+| HKTDC China Customs Statistics | **appears free** | Run by Hong Kong's trade-promotion council, not a commercial vendor — no subscription page or pricing found (checked, blocked from direct fetch, but no paid-tier evidence anywhere). Likely aggregate country/major-commodity totals only, same limitation as GACC's own English bulletin — probably too coarse for HS 1518-level detail. Useful as a free spot-check, not a pipeline source. |
 | Shipment-level platforms (ImportGenius/Panjiva-class) | $150–400+/mo | Company-level BoL detail, but China export coverage is indirect on most platforms — check coverage for HS 1518 specifically before subscribing. |
 | Kpler/Vortexa-class vessel tracking | enterprise | Best for bulk-liquid UCO/UCOME cargo flows out of Chinese ports, near-real-time; also the priciest. |
 
@@ -274,8 +274,9 @@ python scripts/screenshot.py              # Playwright screenshots of every
   country resolution is by Portuguese name match, not numeric code — see
   "Quick win in detail" above. Not wired into rankings/partners for the same
   incomplete-catalogue reason as Indonesia/Malaysia.
-- HKTDC's China Customs Statistics pricing hasn't been looked up yet —
-  open item if evaluating it as a paid Chinese-data route.
+- HKTDC's China Customs Statistics appears to be a free resource (no
+  pricing/subscription found), but likely too coarse (aggregate totals, not
+  bilateral HS8) to feed this app — see the P3 access-options table.
 - CN8-to-candidate mappings (`app/signals/national_override.py`) are also a
   judgment call, same caveat as the unit-value bands.
 - Comext values are converted from EUR to USD at a fixed indicative rate, not
