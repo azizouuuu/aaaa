@@ -97,7 +97,12 @@ def methodology():
             "pipeline": "EU mirror — Eurostat Comext (CN8)",
             "status": "implemented, unverified against live endpoint",
         },
-        {"phase": "P2", "pipeline": "Indonesia BPS + Malaysia DOSM (AHTN8)", "status": "planned"},
+        {
+            "phase": "P2",
+            "pipeline": "Indonesia BPS + Malaysia DOSM (AHTN8)",
+            "status": "implemented as local-file ingestion, not a live API — "
+                     "see GET /api/origin-check",
+        },
         {"phase": "P3", "pipeline": "China — GACC releases + EU/US/SGP mirrors", "status": "planned"},
         {"phase": "quick win", "pipeline": "Brazil Comex Stat (NCM8)", "status": "planned"},
         {"phase": "quick win", "pipeline": "US Census (HTS10)", "status": "planned"},

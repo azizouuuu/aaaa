@@ -88,3 +88,14 @@ NATIONAL_LINES: dict[tuple[str, str], list[NatLine]] = {
 
 def lines_for(jurisdiction: str, slug: str) -> list[NatLine]:
     return NATIONAL_LINES.get((jurisdiction, slug), [])
+
+
+def slug_for_national_code(jurisdiction: str, code: str) -> str | None:
+    """National tariff code (any punctuation/spacing) -> the slug it belongs
+    to, scoped to one jurisdiction. Used by ingestion pipelines to interpret
+    a national code without needing the caller to already know the slug."""
+    normalized = code.replace(" ", "").replace(".", "")
+    for (jur, slug), lines in NATIONAL_LINES.items():
+        if jur == jurisdiction and any(line.code == normalized for line in lines):
+            return slug
+    return None

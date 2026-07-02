@@ -4,16 +4,22 @@ mirror checks."""
 from fastapi import APIRouter, HTTPException
 
 from ..models import FlowQuery
+from ..pipelines import indonesia_bps, malaysia_dosm
 from ..registry.countries import COUNTRIES, name_of
 from ..services import get_registry
 from ..signals.candidates import candidates_for
 from ..signals.corridors import hub_share
 from ..signals.engine import disaggregate_flow
 from ..signals.mirror import mirror_check
+from ..signals.origin_confirmation import confirm as confirm_origin
 from ..signals.origination import corridor_flags, country_flags
 from .helpers import aggregate_by, commodity_or_404, envelope, flow_or_400
 
 router = APIRouter(prefix="/api")
+
+# P2 local-file sources, keyed by the reporter they cover — see
+# app/pipelines/national_csv.py for why these read a local file.
+_ORIGIN_SOURCES = {"IDN": indonesia_bps.build, "MYS": malaysia_dosm.build}
 
 
 def _serialize_signal(result, slug: str) -> dict:
@@ -140,5 +146,35 @@ def mirror(cmd: str, exporter: str, importer: str, year: int = 2024):
         | {"exporter": {"iso3": exporter, "name": name_of(exporter)},
            "importer": {"iso3": importer, "name": name_of(importer)},
            "year": year},
+        get_registry().data_mode,
+    )
+
+
+@router.get("/origin-check")
+def origin_check(cmd: str, reporter: str, year: int = 2024):
+    """P2: compare a country's own declared export value (local file, see
+    app/pipelines/national_csv.py) against the global mirror. `available:
+    false` is the expected result until a user provides that file — this is
+    not an error."""
+    c = commodity_or_404(cmd)
+    build_source = _ORIGIN_SOURCES.get(reporter)
+    if build_source is None:
+        raise HTTPException(
+            404, f"no local-file source configured for '{reporter}' "
+                 f"(available: {list(_ORIGIN_SOURCES)})"
+        )
+    result = confirm_origin(c.slug, reporter, year, build_source(), get_registry())
+    return envelope(
+        {
+            "slug": result.slug,
+            "reporter": {"iso3": result.reporter, "name": name_of(result.reporter)},
+            "year": result.year,
+            "available": result.available,
+            "global_value_usd": result.global_value_usd,
+            "national_value_usd": result.national_value_usd,
+            "ratio": result.ratio,
+            "note": result.note,
+            "warnings": result.warnings or [],
+        },
         get_registry().data_mode,
     )

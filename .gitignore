@@ -3,6 +3,7 @@ __pycache__/
 .env
 data/*.sqlite
 data/*.sqlite-journal
+data/local/
 .pytest_cache/
 .venv/
 scratch/

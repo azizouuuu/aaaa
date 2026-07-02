@@ -66,18 +66,20 @@ matter most for this use case.
 ```
 app/
   pipelines/     data sources: comtrade.py (live, global HS6), eurostat_comext.py
-                 (live, EU CN8 + non-EU mirror), sample.py (offline fallback).
-                 One shared protocol (base.py) so new national sources slot
-                 in without touching the API layer.
+                 (live, EU CN8 + non-EU mirror), national_csv.py + indonesia_bps.py
+                 + malaysia_dosm.py (local-file ingestion, see P2 below),
+                 sample.py (offline fallback). One shared protocol (base.py)
+                 so new national sources slot in without touching the API layer.
   registry/      commodities.py (HS codes + caveats), countries.py (ISO3/M49,
                  EU/Eurostat codes, watchlists, RD/SAF hubs), national_codes.py
                  (8-10 digit tariff-line targets for the national pipelines).
   signals/       unit_value.py, corridors.py, candidates.py (origin priors +
                  bands), mirror.py, origination.py, national_override.py
-                 (CN8 line -> candidate map), engine.py (composite scorer +
-                 national-line short-circuit).
+                 (CN8 line -> candidate map), origin_confirmation.py (national
+                 CSV vs global-mirror cross-check), engine.py (composite
+                 scorer + national-line short-circuit).
   api/           FastAPI routers: meta, trade (rankings/trend/partners/
-                 watchlist), signals.
+                 watchlist), signals (incl. origin-check).
 static/          vanilla JS + hand-rolled SVG charts, hash-router, dark mode.
 data/sample/     committed, deterministic synthetic dataset (see below).
 ```
@@ -101,7 +103,7 @@ becomes 7 per-year calls rather than one call that silently truncates.
 |---|---|---|
 | P0 (live) | UN Comtrade | global HS6 baseline, all countries |
 | P1 (implemented, unverified live) | Eurostat Comext (CN8) | EU mirror data — splits POME/soapstock, PFAD/acid oil, UCO/modified oils directly at CN8, and picks up non-EU exporters' flows via the EU side even though they aren't reporters themselves |
-| P2 | Indonesia BPS + Malaysia DOSM (AHTN8) | origin-side confirmation for the palm-belt feedstocks |
+| P2 (implemented, local-file) | Indonesia BPS + Malaysia DOSM (AHTN8) | origin-side confirmation for the palm-belt feedstocks — see `GET /api/origin-check` |
 | P3 | China (GACC releases + mirrors) | the #1 UCO exporter has no open customs API — mirror-only initially |
 | quick win | Brazil Comex Stat (NCM8) | fully open API, no key |
 | quick win | US Census (HTS10) | free key |
@@ -142,13 +144,51 @@ indicative rate (`EUR_TO_USD` in the same file) as a stopgap — a per-year FX
 rate would be the correct fix. **Before trusting P1 output, run one live
 call and check both.**
 
+### P2 in detail: Indonesia BPS + Malaysia DOSM (local-file ingestion, not a live API)
+
+Unlike Comtrade and Eurostat — both long-standing services with documented,
+stable APIs — neither Indonesia's BPS nor Malaysia's DOSM has a publicly
+documented API for bilateral HS-code trade at the confidence level needed to
+write against it sight-unseen. Rather than guess endpoint details for two
+more national offices, P2 reads from a **local CSV file** you provide:
+
+```bash
+export INDONESIA_BPS_CSV=/path/to/indonesia.csv   # default: data/local/indonesia_bps.csv
+export MALAYSIA_DOSM_CSV=/path/to/malaysia.csv    # default: data/local/malaysia_dosm.csv
+```
+
+Download the relevant export/import-by-HS-code table — Indonesia BPS at
+<https://www.bps.go.id/exim/>, Malaysia via OpenDOSM's trade catalogue at
+<https://open.dosm.gov.my/data-catalogue> — and normalize it into:
+
+```
+hs_code,partner,flow,year,value_usd,net_wgt_kg
+15220090,Netherlands,X,2024,180000000,290000000
+```
+
+(`partner` accepts ISO2/ISO3 or the common English name; `net_wgt_kg` is
+optional. Full schema and column rules in `app/pipelines/national_csv.py`.)
+
+This deliberately does **not** replace Comtrade in rankings/partners/trend:
+the catalogued AHTN8 lines for Indonesia/Malaysia are single "other/residual"
+lines, and whether they fully partition the HS6 heading is unverified — using
+them as a drop-in total could silently understate a country's trade. Instead,
+`GET /api/origin-check?cmd=pome&reporter=IDN&year=2024` compares the
+country's own declared value against the global HS6 total and reports the
+gap plainly (e.g. "covers only 43% of the global total — likely other AHTN8
+sub-lines aren't catalogued yet") rather than picking a side. With no file
+present it returns `available: false`, not an error — that's the expected
+state until you provide data.
+
 ## Testing
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # 42 tests: determinism, signals
-                                           # math, Comtrade budget splitting,
-                                           # full API smoke (sample mode)
+pytest                                    # 74 tests: determinism, signals
+                                           # math, Comtrade/Eurostat request
+                                           # building, national CSV ingestion,
+                                           # origin confirmation, full API
+                                           # smoke (sample mode)
 python scripts/screenshot.py              # Playwright screenshots of every
                                            # route + dark mode (needs the
                                            # server running separately)
@@ -165,6 +205,12 @@ python scripts/screenshot.py              # Playwright screenshots of every
   judgment call, same caveat as the unit-value bands.
 - Comext values are converted from EUR to USD at a fixed indicative rate, not
   a per-year FX rate.
+- **Indonesia BPS / Malaysia DOSM (P2) are local-file ingestion, not live
+  APIs** — see "P2 in detail" above. `/api/origin-check` returns
+  `available: false` until you supply a CSV; that's expected, not a bug.
+- The catalogued AHTN8 lines for Indonesia/Malaysia are single "other"
+  lines of unverified completeness — a large gap in `/api/origin-check`
+  likely means an uncatalogued sub-line exists, not bad data.
 - Annual frequency only; monthly data (Comtrade `C/M/HS`, Comex Stat monthly)
   is a natural Phase-4 addition.
 - No auth/rate-limiting — assumes local/trusted deployment.

@@ -127,3 +127,21 @@ def test_static_index_served():
     r = client.get("/")
     assert r.status_code == 200
     assert "Renewable Trade Monitor" in r.text
+
+
+def test_origin_check_unavailable_without_local_file():
+    r = client.get("/api/origin-check", params={"cmd": "pome", "reporter": "IDN", "year": 2024})
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["available"] is False
+    assert "No local file" in data["note"]
+
+
+def test_origin_check_unknown_commodity_404():
+    r = client.get("/api/origin-check", params={"cmd": "nope", "reporter": "IDN"})
+    assert r.status_code == 404
+
+
+def test_origin_check_unsupported_reporter_404():
+    r = client.get("/api/origin-check", params={"cmd": "pome", "reporter": "USA"})
+    assert r.status_code == 404
