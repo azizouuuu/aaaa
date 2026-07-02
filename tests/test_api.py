@@ -42,12 +42,36 @@ def test_rankings_bad_flow_400():
     assert r.status_code == 400
 
 
+def test_rankings_defaults_to_weight_and_sorts_by_it():
+    r = client.get("/api/rankings", params={"cmd": "uco", "flow": "X", "year": 2024})
+    data = r.json()["data"]
+    assert data["metric"] == "wgt"
+    weights = [row["net_wgt_t"] for row in data["rows"]]
+    assert all(w is not None for w in weights)
+    assert weights == sorted(weights, reverse=True)
+    assert "world_total_wgt_t" in data and "world_total_usd" in data
+
+
+def test_rankings_usd_metric_sorts_by_value():
+    r = client.get("/api/rankings", params={"cmd": "uco", "flow": "X", "year": 2024, "metric": "usd"})
+    data = r.json()["data"]
+    assert data["metric"] == "usd"
+    values = [row["value_usd"] for row in data["rows"]]
+    assert values == sorted(values, reverse=True)
+
+
+def test_rankings_bad_metric_400():
+    r = client.get("/api/rankings", params={"cmd": "uco", "flow": "X", "metric": "kg"})
+    assert r.status_code == 400
+
+
 def test_trend_world_has_all_years():
     r = client.get("/api/trend/world", params={"cmd": "pome"})
     assert r.status_code == 200
     data = r.json()["data"]
     assert data["years"] == list(range(2018, 2025))
     assert len(data["exports"]) == len(data["years"])
+    assert "net_wgt_t" in data["exports"][0]
 
 
 def test_partners_returns_hub_flag():
@@ -57,9 +81,29 @@ def test_partners_returns_hub_flag():
     assert any(row["is_hub"] for row in rows)  # Netherlands should show up
 
 
+def test_partners_defaults_to_weight_and_sorts_by_it():
+    r = client.get("/api/partners", params={"cmd": "pome", "reporter": "IDN", "flow": "X", "year": 2024})
+    data = r.json()["data"]
+    assert data["metric"] == "wgt"
+    weights = [row["net_wgt_t"] for row in data["rows"]]
+    assert weights == sorted(weights, reverse=True)
+
+
 def test_partners_unknown_reporter_404():
     r = client.get("/api/partners", params={"cmd": "pome", "reporter": "ZZZ", "flow": "X"})
     assert r.status_code == 404
+
+
+def test_partners_bad_metric_400():
+    r = client.get("/api/partners", params={"cmd": "pome", "reporter": "IDN", "metric": "kg"})
+    assert r.status_code == 400
+
+
+def test_partners_trend_includes_weight_series():
+    r = client.get("/api/partners/trend", params={"cmd": "pome", "reporter": "IDN", "flow": "X"})
+    assert r.status_code == 200
+    rows = r.json()["data"]["rows"]
+    assert all("net_wgt_t" in row for row in rows)
 
 
 def test_watchlist_asia_region():
@@ -68,6 +112,28 @@ def test_watchlist_asia_region():
     rows = r.json()["data"]["rows"]
     isos = {row["iso3"] for row in rows}
     assert {"IDN", "MYS", "CHN"}.issubset(isos)
+
+
+def test_watchlist_defaults_to_weight_and_sorts_by_it():
+    r = client.get("/api/watchlist", params={"region": "asia", "year": 2024})
+    data = r.json()["data"]
+    assert data["metric"] == "wgt"
+    values = [row["metric_value"] or 0 for row in data["rows"]]
+    assert values == sorted(values, reverse=True)
+    assert all("net_wgt_t" in row["by_year"][0] for row in data["rows"])
+
+
+def test_watchlist_usd_metric():
+    r = client.get("/api/watchlist", params={"region": "sam", "year": 2024, "metric": "usd"})
+    data = r.json()["data"]
+    assert data["metric"] == "usd"
+    values = [row["metric_value"] or 0 for row in data["rows"]]
+    assert values == sorted(values, reverse=True)
+
+
+def test_watchlist_bad_metric_400():
+    r = client.get("/api/watchlist", params={"region": "asia", "metric": "kg"})
+    assert r.status_code == 400
 
 
 def test_watchlist_unknown_region_404():

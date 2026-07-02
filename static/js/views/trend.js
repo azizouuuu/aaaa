@@ -10,17 +10,17 @@ export async function render(container, params) {
   const title = htmlEl("h2", {}, card);
   const sub = htmlEl("div", { class: "sub" }, card);
   const metricRow = htmlEl("div", { class: "flow-toggle", style: "margin-bottom:12px;" }, card);
-  const bVal = htmlEl("button", { class: "active" }, metricRow);
-  bVal.textContent = "Value (USD)";
-  const bWgt = htmlEl("button", {}, metricRow);
+  const bWgt = htmlEl("button", { class: "active" }, metricRow);
   bWgt.textContent = "Volume (tonnes)";
+  const bVal = htmlEl("button", {}, metricRow);
+  bVal.textContent = "Value (USD)";
   const chartHost = htmlEl("div", {}, card);
 
   const { state, meta } = await renderFilters(filterHost, { cmd: params.cmd }, {
     hideFlow: true, hideYear: true, onChange: (s) => load(s),
   });
 
-  let metric = "value_usd";
+  let metric = "net_wgt_t";
   bVal.addEventListener("click", () => { metric = "value_usd"; paintMetric(); load(state); });
   bWgt.addEventListener("click", () => { metric = "net_wgt_t"; paintMetric(); load(state); });
   function paintMetric() {

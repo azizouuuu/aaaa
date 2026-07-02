@@ -61,6 +61,16 @@ Japan, Korea, India) and South America (Argentina, Brazil, Uruguay, Paraguay,
 Colombia, Peru) watchlists, since those are the feedstock-export regions that
 matter most for this use case.
 
+**Tonnage by default.** Rankings, Partners, and Watchlist rank and display
+by physical volume (tonnes), not USD value — a country's dollar value moves
+with price as much as with quantity, so comparing tonnage is the more direct
+read of actual trade flow. A Value ($) toggle is available everywhere the
+Volume (t) one is; switching genuinely re-ranks the list (e.g. China leads
+UCO exports by value but not by volume — see `app/api/helpers.py::rank_rows`)
+rather than just relabeling the same order. Countries with no reported
+weight for a given flow/year are omitted from the tonnage ranking, with a
+count shown, rather than silently plotted as zero.
+
 ## Architecture
 
 ```
@@ -266,12 +276,13 @@ the live endpoint**, same flag as Eurostat/Census.
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # 101 tests: determinism, signals math,
+pytest                                    # 110 tests: determinism, signals math,
                                            # Comtrade/Eurostat/Census/Comex Stat
                                            # request building, national CSV
                                            # ingestion, origin confirmation,
-                                           # China mirror triangulation, full
-                                           # API smoke (sample mode)
+                                           # China mirror triangulation,
+                                           # tonnage/value metric ranking,
+                                           # full API smoke (sample mode)
 python scripts/screenshot.py              # Playwright screenshots of every
                                            # route + dark mode (needs the
                                            # server running separately)

@@ -6,7 +6,10 @@ import { htmlEl } from "./charts.js";
  * control changes. Returns the current state object (mutated in place). */
 export async function renderFilters(container, initial, opts = {}) {
   const meta = await getMeta();
-  const state = { cmd: initial.cmd, flow: initial.flow || "X", year: initial.year || 2024 };
+  const state = {
+    cmd: initial.cmd, flow: initial.flow || "X", year: initial.year || 2024,
+    metric: initial.metric || "wgt",
+  };
   container.textContent = "";
   const bar = htmlEl("div", { class: "filters" }, container);
 
@@ -54,6 +57,21 @@ export async function renderFilters(container, initial, opts = {}) {
     }
     ysel.value = state.year;
     ysel.addEventListener("change", () => { state.year = Number(ysel.value); opts.onChange(state); });
+  }
+
+  if (opts.showMetric) {
+    const metricWrap = htmlEl("span", { class: "flow-toggle" }, bar);
+    const bw = htmlEl("button", {}, metricWrap);
+    bw.textContent = "Volume (t)";
+    const bu = htmlEl("button", {}, metricWrap);
+    bu.textContent = "Value ($)";
+    const paintMetric = () => {
+      bw.classList.toggle("active", state.metric === "wgt");
+      bu.classList.toggle("active", state.metric === "usd");
+    };
+    paintMetric();
+    bw.addEventListener("click", () => { state.metric = "wgt"; paintMetric(); opts.onChange(state); });
+    bu.addEventListener("click", () => { state.metric = "usd"; paintMetric(); opts.onChange(state); });
   }
 
   if (pool.find((c) => c.slug === state.cmd)?.shared_heading) {
