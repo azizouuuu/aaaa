@@ -1,0 +1,30 @@
+<title>Renewable Trade Monitor</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/app.css" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<div class="app viz-root">
+  <div class="topbar">
+    <div class="brand">Renewable Trade Monitor <span>· feedstocks &amp; biofuels</span></div>
+    <nav class="nav" id="nav">
+      <a href="#/rankings" data-route="rankings">Rankings</a>
+      <a href="#/trend" data-route="trend">World trend</a>
+      <a href="#/partners" data-route="partners">Partners</a>
+      <a href="#/watchlist" data-route="watchlist">Watchlist</a>
+      <a href="#/signals" data-route="signals">Signals</a>
+      <a href="#/methodology" data-route="methodology">Methodology</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle">Theme</button>
+  </div>
+
+  <div id="sample-banner" class="sample-banner">
+    ⚠ Showing synthetic sample data (live sources unavailable in this environment).
+    Magnitudes are illustrative, not real customs statistics — set <code>DATA_MODE=live</code>
+    with network access to pull real UN Comtrade data.
+  </div>
+
+  <div id="view"></div>
+</div>
+
+<script type="module" src="/js/router.js"></script>
