@@ -111,8 +111,16 @@ class NationalCsvSource:
         self.code_system = code_system
         self.csv_path = csv_path
 
+    @property
+    def location(self) -> str:
+        return f"No local file at {self.csv_path}"
+
     def available(self) -> bool:
         return self.csv_path.exists()
 
-    def load(self) -> tuple[list[TradeRecord], list[str]]:
+    def load(self, slug: str | None = None, year: int | None = None) -> tuple[list[TradeRecord], list[str]]:
+        """slug/year are accepted for interface parity with live sources
+        (see brazil_comexstat.py) but ignored — a CSV file is already
+        scoped to whatever the user exported; origin_confirmation.confirm()
+        filters by year/flow itself."""
         return load_csv(self.csv_path, self.jurisdiction, self.jurisdiction, self.code_system)

@@ -110,7 +110,12 @@ def methodology():
             "status": "implemented; GACC portal itself is not freely automatable "
                      "(mainland real-name registration, overseas fetch blocked)",
         },
-        {"phase": "quick win", "pipeline": "Brazil Comex Stat (NCM8)", "status": "planned"},
+        {
+            "phase": "quick win",
+            "pipeline": "Brazil Comex Stat (NCM8)",
+            "status": "implemented (live, no key needed), unverified against "
+                     "live endpoint — see GET /api/origin-check?reporter=BRA",
+        },
         {
             "phase": "quick win",
             "pipeline": "US Census (HTS10)",
@@ -160,6 +165,15 @@ def methodology():
                              "is covered via mirror triangulation (/api/china-mirror) "
                              "and a local-file slot for manually/commercially obtained "
                              "data (/api/origin-check?reporter=CHN).",
+                },
+                {
+                    "name": "Brazil Comex Stat",
+                    "url": "https://comexstat.mdic.gov.br",
+                    "notes": "Brazil's own trade statistics at NCM8 detail; genuinely "
+                             "open API, no key or registration. Feeds "
+                             "/api/origin-check?reporter=BRA live rather than via a "
+                             "manual file. Not yet exercised against the live endpoint "
+                             "in this build.",
                 },
             ],
         },

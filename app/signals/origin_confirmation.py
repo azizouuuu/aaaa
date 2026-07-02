@@ -30,17 +30,20 @@ class OriginConfirmation:
 
 
 def confirm(slug: str, reporter: str, year: int, source, registry) -> OriginConfirmation:
-    """`source` is a NationalCsvSource (indonesia_bps.build() / malaysia_dosm.build());
-    `registry` is the app's PipelineRegistry (for the global-mirror side)."""
+    """`source` is any object with `.available() -> bool`, `.location` (a
+    string describing where to look/what's missing), and
+    `.load(slug, year) -> (records, warnings)` — NationalCsvSource
+    (Indonesia/Malaysia/China) or a live pipeline like
+    brazil_comexstat.BrazilComexStatPipeline. `registry` is the app's
+    PipelineRegistry (for the global-mirror side)."""
     if not source.available():
         return OriginConfirmation(
             slug, reporter, year, available=False,
-            note=f"No local file at {source.csv_path} — see "
-                 f"app/pipelines/national_csv.py for the schema and where to "
-                 f"source it.",
+            note=f"{source.location} — see app/pipelines/national_csv.py or "
+                 f"the source-specific module for how to provide data.",
         )
 
-    records, warnings = source.load()
+    records, warnings = source.load(slug, year)
     national_value = sum(r.value_usd for r in records if r.year == year and r.flow == "X")
 
     commodity = BY_SLUG[slug]

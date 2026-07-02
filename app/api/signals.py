@@ -4,9 +4,9 @@ mirror checks."""
 from fastapi import APIRouter, HTTPException
 
 from ..models import FlowQuery
-from ..pipelines import china_gacc, indonesia_bps, malaysia_dosm
+from ..pipelines import brazil_comexstat, china_gacc, indonesia_bps, malaysia_dosm
 from ..registry.countries import COUNTRIES, name_of
-from ..services import get_registry
+from ..services import get_registry, get_store
 from ..signals.candidates import candidates_for
 from ..signals.china_mirror import triangulate
 from ..signals.corridors import hub_share
@@ -18,12 +18,14 @@ from .helpers import aggregate_by, commodity_or_404, envelope, flow_or_400
 
 router = APIRouter(prefix="/api")
 
-# P2/P3 local-file sources, keyed by the reporter they cover — see
-# app/pipelines/national_csv.py for why these read a local file.
+# P2/P3 origin-confirmation sources, keyed by the reporter they cover — most
+# are local-file (see app/pipelines/national_csv.py); Brazil is live (see
+# app/pipelines/brazil_comexstat.py).
 _ORIGIN_SOURCES = {
     "IDN": indonesia_bps.build,
     "MYS": malaysia_dosm.build,
     "CHN": china_gacc.build,
+    "BRA": lambda: brazil_comexstat.build(get_store()),
 }
 
 

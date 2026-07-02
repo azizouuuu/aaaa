@@ -67,7 +67,8 @@ matter most for this use case.
 app/
   pipelines/     data sources: comtrade.py (live, global HS6), eurostat_comext.py
                  (live, EU CN8 + non-EU mirror), us_census.py (live, HTS10 +
-                 China mirror), national_csv.py + indonesia_bps.py +
+                 China mirror), brazil_comexstat.py (live, NCM8, feeds
+                 origin-check), national_csv.py + indonesia_bps.py +
                  malaysia_dosm.py + china_gacc.py (local-file ingestion, see
                  P2/P3 below), sample.py (offline fallback). One shared
                  protocol (base.py) so new national sources slot in without
@@ -108,7 +109,7 @@ becomes 7 per-year calls rather than one call that silently truncates.
 | P1 (implemented, unverified live) | Eurostat Comext (CN8) | EU mirror data — splits POME/soapstock, PFAD/acid oil, UCO/modified oils directly at CN8, and picks up non-EU exporters' flows via the EU side even though they aren't reporters themselves |
 | P2 (implemented, local-file) | Indonesia BPS + Malaysia DOSM (AHTN8) | origin-side confirmation for the palm-belt feedstocks — see `GET /api/origin-check` |
 | P3 (implemented) | China — mirror triangulation + GACC local-file slot | the #1 UCO exporter, covered from the demand side — see `GET /api/china-mirror` and the China tab |
-| quick win | Brazil Comex Stat (NCM8) | fully open API, no key |
+| quick win (implemented, unverified live) | Brazil Comex Stat (NCM8) | fully open API, no key — feeds `GET /api/origin-check?reporter=BRA` live |
 | quick win (implemented, unverified live) | US Census (HTS10) | HTS10 detail incl. the UCO import line; also the biggest China mirror |
 | deferred | Paid shipment/vessel data (ImportGenius vs Kpler-class) | revisit once specific corridors need company-level or vessel-level confirmation |
 
@@ -218,23 +219,42 @@ not built until one is chosen):
 |---|---|---|
 | Someone with mainland access exports CSVs from stats.customs.gov.cn manually | free + labor | Portal registration needs a mainland phone; monthly bilateral HS8 queries are exportable once inside. Feeds the `china_gacc.py` slot as-is. |
 | Data resellers (transcustoms, china-gacc.agency, cnabke-listed platforms) | low hundreds $/mo | Repackage GACC statistics; quality/licensing varies — verify a sample against mirror data before paying for a year. |
-| HKTDC China Customs Statistics | subscription | Established re-publisher of official GACC monthly statistics. |
+| HKTDC China Customs Statistics | subscription (pricing TBD — open item) | Established re-publisher of official GACC monthly statistics. |
 | Shipment-level platforms (ImportGenius/Panjiva-class) | $150–400+/mo | Company-level BoL detail, but China export coverage is indirect on most platforms — check coverage for HS 1518 specifically before subscribing. |
 | Kpler/Vortexa-class vessel tracking | enterprise | Best for bulk-liquid UCO/UCOME cargo flows out of Chinese ports, near-real-time; also the priciest. |
 
 The mirror triangulation stays valuable regardless — it's the independent
 cross-check any purchased Chinese dataset should be validated against.
 
+### Quick win in detail: Brazil Comex Stat
+
+Unlike Indonesia/Malaysia, Brazil's Comex Stat (comexstat.mdic.gov.br) is a
+genuinely open, documented public API — no key, no registration. Brazil is
+always the implicit reporter (there's no country selector; it's Brazil's own
+declarations), so `app/pipelines/brazil_comexstat.py` is a live pipeline,
+not a file drop like `national_csv.py`.
+
+Same scope caution as Indonesia/Malaysia, though: the catalogued NCM8 lines
+(tallow, soy) aren't confirmed to fully partition their HS6 heading, so this
+isn't wired into rankings/partners as a Comtrade replacement — it feeds
+`GET /api/origin-check?cmd=tallow&reporter=BRA&year=2024` live instead,
+sharing the same `available()` / `load(slug, year)` interface as the CSV
+sources (`available()` returns `false` whenever `DATA_MODE=sample`, matching
+this sandbox). Country resolution is by Portuguese name match
+(`PT_COUNTRY_NAMES`), not numeric SISCOMEX codes — the same "skip and warn
+rather than silently miscode" rule as the CSV loader. **Unverified against
+the live endpoint**, same flag as Eurostat/Census.
+
 ## Testing
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # 89 tests: determinism, signals math,
-                                           # Comtrade/Eurostat/Census request
-                                           # building, national CSV ingestion,
-                                           # origin confirmation, China mirror
-                                           # triangulation, full API smoke
-                                           # (sample mode)
+pytest                                    # 101 tests: determinism, signals math,
+                                           # Comtrade/Eurostat/Census/Comex Stat
+                                           # request building, national CSV
+                                           # ingestion, origin confirmation,
+                                           # China mirror triangulation, full
+                                           # API smoke (sample mode)
 python scripts/screenshot.py              # Playwright screenshots of every
                                            # route + dark mode (needs the
                                            # server running separately)
@@ -250,6 +270,12 @@ python scripts/screenshot.py              # Playwright screenshots of every
   against each before trusting their output.
 - The China mirror panel covers 20 destinations; flows to unlisted countries
   are invisible to `/api/china-mirror`, and mirror imports are CIF vs FOB.
+- **Brazil Comex Stat is unverified against its live endpoint**, and its
+  country resolution is by Portuguese name match, not numeric code — see
+  "Quick win in detail" above. Not wired into rankings/partners for the same
+  incomplete-catalogue reason as Indonesia/Malaysia.
+- HKTDC's China Customs Statistics pricing hasn't been looked up yet —
+  open item if evaluating it as a paid Chinese-data route.
 - CN8-to-candidate mappings (`app/signals/national_override.py`) are also a
   judgment call, same caveat as the unit-value bands.
 - Comext values are converted from EUR to USD at a fixed indicative rate, not
